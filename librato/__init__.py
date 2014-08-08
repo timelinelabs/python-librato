@@ -302,6 +302,14 @@ class LibratoConnection(object):
         return resp
 
     #
+    # Alerts
+    #
+    def list_alerts(self, **query_props):
+        """List all alerts"""
+        resp = self._mexe("alerts", query_props=query_props)
+        return self._parse(resp, "alerts", Alert)
+
+    #
     # Queue
     #
     def new_queue(self, **kwargs):
