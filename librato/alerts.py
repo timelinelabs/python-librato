@@ -1,48 +1,124 @@
-# Copyright (c) 2013. Librato, Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#     * Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above copyright
-#       notice, this list of conditions and the following disclaimer in the
-#       documentation and/or other materials provided with the distribution.
-#     * Neither the name of Librato, Inc. nor the names of project contributors
-#       may be used to endorse or promote products derived from this software
-#       without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL LIBRATO, INC. BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+from librato.services import Service
 
 class Alert(object):
     """Librato Alert Base class"""
+    properties = {
+        1: (
+            'id',
+            'name',
+            'version',
+            'active',
+            'services',
+            'entity_type',
+            'entity_name',
+            'thresh_above_value',
+            'thresh_below_value'
+            ),
+        2: (
+            'id',
+            'name',
+            'version',
+            'active',
+            'services',
+            'conditions', 
+            'description',
+            'rearm_seconds',
+            'attributes'
+            )
+    }
 
-    def __init__(self, connection, name, conditions=[], services=[], attributes={} ):
-        self.connection = connection
-        self.name = name
-        self.display_name = display_name
-        self.events = {}
-        self.query = {}
+    def __init__(self, connection, *args, **kwargs):
+        for dictionary in args:
+            for key in dictionary:
+                if not key == "conditions" and not key == "services":
+                    setattr(self, key, dictionary[key])
+        for key in kwargs:
+            if not key == "conditions" and not key == "services":
+                setattr(self, key, kwargs[key])
+        if not hasattr(self, 'version'): self.version = 2
+        for prop in self.properties[self.version]:
+            if not hasattr(self, prop): setattr(self, prop, None)
+
 
     @classmethod
     def from_dict(cls, connection, data):
-        """Returns a metric object from a dictionary item,
+        """Returns an alert object from a dictionary item,
         which is usually from librato's API"""
-        obj = cls(connection, data['name'])
-        obj.display_name = data['display_name'] if 'display_name' in data else None
-        obj.events = data['events'] if 'events' in data else None
-        obj.query = data['query'] if 'query' in data else {}
+        obj = cls(connection, data)
+        if 'services' in data:
+            obj.services = []
+            for s in data['services']:
+                if isinstance(s, Service):
+                    obj.services.append(s)
+                elif isinstance(s, dict):
+                    obj.services.append(Service.from_dict(connection, s))
+        if 'conditions' in data:
+            obj.conditions = []
+            for c in data['conditions']:
+                if isinstance(c, Condition):
+                    obj.conditions.append(c)
+                elif isinstance(c, dict):
+                    obj.conditions.append(Condition(connection, c))
         return obj
 
-    def get_payload(self):                                                                  
-        return {'name': self.name,'display_name': self.display_name}
+    def get_payload(self):
+        payload = {}
+        payload['version'] = self.version
+        for prop in self.properties[self.version]:
+            if prop == 'services':
+                if self.services is None:
+                    payload[prop] = None
+                else:
+                    payload[prop] = [s.get_payload() for s in self.services]
+            elif prop == 'conditions':
+                if self.conditions is None:
+                    payload[prop] = None
+                else:
+                    payload[prop] = [c.get_payload() for c in self.conditions]
+            else:
+                payload[prop] = getattr(self, prop)
+        return payload
+
+
+class Condition(object):
+    """Librato Alert Conditions class"""
+    properties = {
+        'above': (
+            'metric_name',
+            'source',
+            'threshold',
+            'summary_function',
+            'duration',
+            'detect_reset'
+        ),
+        'absent': (
+            'metric_name',
+            'source',
+            'duration'       
+        ),
+        'below': (
+            'metric_name',
+            'source',
+            'threshold',
+            'summary_function',
+            'duration',
+            'detect_reset'
+        )
+    }
+
+    def __init__(self, connection, *args, **kwargs):
+        for dictionary in args:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+        # if not hasattr(self, ''): self.version = 2
+        for prop in self.properties[self.type]:
+            if not hasattr(self, prop): setattr(self, prop, None)
+
+    def get_payload(self):
+        payload = {}
+        payload['type'] = self.type
+        for prop in self.properties[self.type]:
+            payload[prop] = getattr(self, prop)
+        return payload

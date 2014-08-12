@@ -41,6 +41,8 @@ from librato.metrics import Gauge, Counter
 from librato.instruments import Instrument
 from librato.dashboards import Dashboard
 from librato.annotations import Annotation
+from librato.alerts import Alert
+import pprint
 
 log = logging.getLogger("librato")
 
@@ -130,12 +132,12 @@ class LibratoConnection(object):
             a_client_error = resp.status >= 400
             if a_client_error:
                 raise exceptions.get(resp.status, resp_data)
-            return resp_data, success, backoff
+            return resp_data, success, backoff, resp.status
         else:  # A server error, wait and retry
             backoff = self.backoff_logic(backoff)
             log.info("%s: waiting %s before re-trying" % (resp.status, backoff))
             time.sleep(backoff)
-            return None, not success, backoff
+            return None, not success, backoff, resp.status
 
     def _mexe(self, path, method="GET", query_props=None, p_headers=None):
         """Internal method for executing a command.
@@ -148,7 +150,7 @@ class LibratoConnection(object):
         resp_data = None
         while not success:
             resp = self._make_request(conn, path, headers, query_props, method)
-            resp_data, success, backoff = self._process_response(resp, backoff)
+            resp_data, success, backoff, status = self._process_response(resp, backoff)
         return resp_data
 
     def _do_we_want_to_fake_server_errors(self):
@@ -308,6 +310,50 @@ class LibratoConnection(object):
         """List all alerts"""
         resp = self._mexe("alerts", query_props=query_props)
         return self._parse(resp, "alerts", Alert)
+
+    def get_alert(self, id, **query_props):
+        """Get a particular alert"""
+        # if isinstance(id, (int, long)) or id.isdigit():
+        resp = self._mexe("alerts/{}".format(id), method="GET", query_props=query_props)
+        alert = Alert.from_dict(self, resp)
+        # else:
+        #     query_props['name'] = id
+        #     resp = self._mexe("alerts", method="GET", query_props=query_props)
+        #     alert = self._parse(resp, "alerts", Alert)[0]
+        return alert
+
+    def update_alert(self, alert, **query_props):
+        """Update a particular alert"""
+        if isinstance(alert, (int, long, str)):
+            alert = self.get_alert(alert)
+        if alert is None: return False
+
+        payload = alert.get_payload()
+        for k, v in query_props.items():
+            payload[k] = v
+        resp = self._mexe("alerts/{}".format(alert.id), method="PUT", query_props=payload)
+        return True
+
+    def create_alert(self, name, **query_props):
+        payload = Alert(self, name=name).get_payload()
+        payload.pop('id', None)
+        payload['active'] = True
+        payload['rearm_seconds'] = 600
+        for k, v in query_props.items():
+            payload[k] = v
+        resp = self._mexe("alerts", method="POST", query_props=payload)
+        return Alert.from_dict(self, resp)
+
+    def delete_alert(self, alert, **query_props):
+        if isinstance(alert, (int, long, str)):
+            alert = self.get_alert(alert)
+        if alert is None: return False
+
+        # payload = alert.get_payload()
+        # for k, v in query_props.items():
+        #     payload[k] = v
+        self._mexe("alerts/{}".format(alert.id), method="DELETE", query_props=query_props)
+        return True
 
     #
     # Queue
