@@ -11,6 +11,8 @@ class MockServer(object):
         self.metrics = {'gauges': OrderedDict(), 'counters': OrderedDict()}
         self.instruments = OrderedDict()
         self.dashboards = OrderedDict()
+        self.alerts = {'services': OrderedDict(), 'conditions': OrderedDict()}
+        self.services = OrderedDict()
         self.last_i_id = 0
         self.last_db_id = 0
 
