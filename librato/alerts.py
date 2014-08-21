@@ -23,7 +23,9 @@ class Alert(object):
             'conditions', 
             'description',
             'rearm_seconds',
-            'attributes'
+            'attributes',
+            'created_at',
+            'updated_at'
             )
     }
 
