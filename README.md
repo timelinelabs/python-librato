@@ -236,5 +236,5 @@ new_alert = api.create_alert("new.alert.name", version=2, conditions=conditions,
 
 ## Contributors
 
-This is a modified version of Librato's `[python-librato](https://github.com/librato/python-librato)`
+This is a modified version of Librato's [python-librato](https://github.com/librato/python-librato)
 
