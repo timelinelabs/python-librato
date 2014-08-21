@@ -20,7 +20,7 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-__version__ = "0.4.14"
+__version__ = "0.4.15"
 
 # Defaults
 HOSTNAME = "metrics-api.librato.com"
@@ -113,8 +113,8 @@ class LibratoConnection(object):
             else:
                 uri += "?" + urlencode(query_props)
 
-        log.info("method=%s uri=%s" % (method, uri))
-        log.info("body(->): %s" % body)
+        log.debug("method=%s uri=%s" % (method, uri))
+        log.debug("body(->): %s" % body)
         conn.request(method, uri, body=body, headers=headers)
         return conn.getresponse()
 
@@ -128,14 +128,14 @@ class LibratoConnection(object):
             body = resp.read()
             if body:
                 resp_data = json.loads(body.decode(_getcharset(resp)))
-            log.info("body(<-): %s" % body)
+            log.debug("body(<-): %s" % body)
             a_client_error = resp.status >= 400
             if a_client_error:
                 raise exceptions.get(resp.status, resp_data)
             return resp_data, success, backoff, resp.status
         else:  # A server error, wait and retry
             backoff = self.backoff_logic(backoff)
-            log.info("%s: waiting %s before re-trying" % (resp.status, backoff))
+            log.debug("%s: waiting %s before re-trying" % (resp.status, backoff))
             time.sleep(backoff)
             return None, not success, backoff, resp.status
 
