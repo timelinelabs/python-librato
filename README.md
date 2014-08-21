@@ -201,17 +201,40 @@ Delete a named annotation stream:
 ```python
 api.delete_annotation_stream("testing")
 ```
+## Alerts
 
-## Contribution
+List Alerts
 
-Do you want to contribute? Do you need a new feature? Please open a
-[ticket](https://github.com/librato/python-librato/issues).
+```python
+for alert in api.list_alerts(version=2, name="some.name"):
+  print "%s: %s" % (alert.id, alert.name)
+```
+
+Get a particular Alert and Delete it
+
+```python
+alert = api.get_alert(alert_id, version=2)
+status = api.delete_alert(alert)
+print "delete status is %s" % status
+```
+
+Create an Alert
+
+```python
+conditions = [
+  {'condition_type': 'below',
+   'metric_name': 'some.metric.name',
+   'source': 'some.source',
+   'threshold': 1,
+   'duration': 300,
+   'summary_function': 'average'
+   }
+]
+services = [service_1_id, service_2_id]
+new_alert = api.create_alert("new.alert.name", version=2, conditions=conditions, services=services)
+```
 
 ## Contributors
 
-The original version of `python-librato` was conceived/authored/released by Chris Moyer (AKA [@kopertop](https://github.com/kopertop)). He's
-graciously handed over maintainership of the project to us and we're super-appreciative of his efforts.
+This is a modified version of Librato's `[python-librato](https://github.com/librato/python-librato)`
 
-## Copyright
-
-Copyright (c) 2011-2014 [Librato Inc.](http://librato.com) See LICENSE for details.
